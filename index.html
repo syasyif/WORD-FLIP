@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WORD FLIP: Sentence Remix!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        
+        .neon-text-pink { text-shadow: 0 0 10px #ec4899, 0 0 20px #ec4899; }
+        .neon-text-blue { text-shadow: 0 0 10px #06b6d4, 0 0 20px #06b6d4; }
+        
+        .neon-border-purple {
+            box-shadow: 0 0 10px #a855f7, inset 0 0 10px #a855f7;
+            border-color: #a855f7;
+        }
+        
+        .word-tile {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .word-tile:active { transform: scale(0.95); }
+        
+        .answer-area {
+            min-height: 100px;
+            border: 2px dashed #475569;
+            transition: border-color 0.3s ease;
+        }
+        .answer-area.active { border-color: #06b6d4; box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
+        
+        /* Animations */
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.4s ease-in-out; }
+        
+        @keyframes successPulse {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+        .animate-success { animation: successPulse 1s ease-out; border-color: #4ade80 !important; }
+
+        .hidden-screen { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center">
+
+    <div id="welcome-screen" class="w-full max-w-md h-screen flex flex-col justify-center items-center p-6 text-center animate-pop">
+        <div class="mb-8">
+            <h1 class="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 neon-text-pink mb-2">WORD FLIP</h1>
+            <h2 class="text-2xl font-bold text-cyan-300 neon-text-blue">SENTENCE REMIX!</h2>
+            <p class="mt-4 text-slate-300 font-medium">Scramble it. Flip it. Nail it! 🎮</p>
+            <p class="mt-2 text-sm text-slate-400">20 challenges. One grammar mission.<br>Can you fix every sentence?</p>
+        </div>
+
+        <div class="w-full space-y-4 max-w-xs">
+            <button onclick="showScreen('how-to-play-screen')" class="w-full py-3 rounded-full bg-slate-800 border-2 border-cyan-500 text-cyan-400 font-bold tracking-wide uppercase hover:bg-slate-700 transition">How To Play 📖</button>
+            
+            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-2xl border border-slate-700">
+                <span class="font-bold text-sm">Mode:</span>
+                <div class="flex gap-2">
+                    <button id="btn-mode-normal" onclick="setMode('normal')" class="px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-bold transition">Normal</button>
+                    <button id="btn-mode-challenge" onclick="setMode('challenge')" class="px-3 py-1 rounded-lg bg-slate-700 text-slate-400 text-xs font-bold transition">Challenge ⏱️</button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-2xl border border-slate-700">
+                <span class="font-bold text-sm">Sound:</span>
+                <button id="btn-sound" onclick="toggleSound()" class="px-4 py-1 rounded-lg bg-pink-500 text-white text-xs font-bold transition">ON 🔊</button>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-4 mt-4 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 font-black text-xl shadow-[0_0_20px_rgba(236,72,153,0.5)] transform hover:scale-105 active:scale-95 transition">PLAY NOW 🚀</button>
+        </div>
+    </div>
+
+    <div id="how-to-play-screen" class="w-full max-w-md h-screen flex flex-col p-6 hidden-screen animate-pop">
+        <h2 class="text-3xl font-black text-cyan-400 mb-4 text-center mt-8">HOW TO PLAY 🕹️</h2>
+        <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 text-sm space-y-3 flex-grow overflow-y-auto">
+            <p class="font-bold text-purple-400 text-lg">Welcome to WORD FLIP!</p>
+            <p><strong>Your mission:</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-300">
+                <li>Read the scrambled words carefully.</li>
+                <li>Tap the words to move them into the answer area and build a correct English sentence.</li>
+                <li>Tap a word in the answer area to remove it.</li>
+                <li>Check your sentence before submitting.</li>
+                <li>Tap SUBMIT ANSWER to see if you are correct.</li>
+            </ul>
+            <p><strong>Rules:</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-300">
+                <li>20 questions, 5 points each (Max 100 pts).</li>
+                <li>Points are awarded ONLY on your first correct attempt.</li>
+                <li>Stuck? Use the HINT button!</li>
+            </ul>
+        </div>
+        <button onclick="showScreen('welcome-screen')" class="w-full py-4 mt-6 rounded-full bg-slate-700 font-bold text-lg border-2 border-slate-600 active:scale-95 transition">BACK TO MENU</button>
+    </div>
+
+    <div id="gameplay-screen" class="w-full max-w-md min-h-screen flex flex-col p-4 hidden-screen">
+        <!-- HUD -->
+        <div class="flex justify-between items-center mb-2">
+            <span id="question-counter" class="font-bold text-purple-400 text-sm tracking-widest">Q: 1/20</span>
+            <div id="timer-display" class="font-black text-pink-500 text-lg hidden">45s</div>
+            <span id="score-display" class="font-bold text-cyan-400 text-sm tracking-widest">SCORE: 0</span>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="w-full bg-slate-800 h-2 rounded-full mb-6 overflow-hidden">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 w-0 transition-all duration-300"></div>
+        </div>
+
+        <p class="text-center font-bold text-lg mb-4">Put the words in the correct order! 🧩</p>
+
+        <!-- Answer Area -->
+        <div class="w-full bg-slate-800 rounded-2xl p-4 mb-4 answer-area flex flex-wrap content-start gap-2 relative" id="answer-area">
+            <span id="answer-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-500 font-bold text-sm pointer-events-none">BUILD YOUR SENTENCE HERE</span>
+            <!-- Answer tiles will go here -->
+        </div>
+
+        <!-- Feedback & Hint Area -->
+        <div id="feedback-area" class="w-full text-center mb-4 min-h-[40px] font-bold text-sm rounded-lg p-2 transition-all"></div>
+        <div id="hint-area" class="w-full bg-purple-900/50 border border-purple-500/50 text-purple-200 rounded-xl p-3 mb-4 text-sm text-center hidden animate-pop"></div>
+
+        <!-- Word Bank -->
+        <div class="w-full flex flex-wrap justify-center gap-2 mb-6" id="word-bank">
+            <!-- Scrambled tiles will go here -->
+        </div>
+
+        <!-- Controls -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <button onclick="undo()" class="bg-slate-700 text-slate-300 py-2 rounded-xl font-bold text-xs active:bg-slate-600 transition">UNDO ↩️</button>
+            <button onclick="clearAnswer()" class="bg-slate-700 text-slate-300 py-2 rounded-xl font-bold text-xs active:bg-slate-600 transition">CLEAR 🗑️</button>
+            <button onclick="showHint()" class="bg-purple-600 text-white py-2 rounded-xl font-bold text-xs active:bg-purple-500 transition shadow-[0_0_10px_rgba(147,51,234,0.3)]">HINT 💡</button>
+        </div>
+
+        <!-- Main Actions -->
+        <button id="btn-submit" onclick="submitAnswer()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-black text-xl shadow-[0_4px_0_#1d4ed8] active:shadow-[0_0px_0_#1d4ed8] active:translate-y-1 transition-all">SUBMIT ANSWER ✅</button>
+        <button id="btn-next" onclick="nextQuestion()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-green-400 to-emerald-600 font-black text-xl shadow-[0_4px_0_#047857] active:shadow-[0_0px_0_#047857] active:translate-y-1 transition-all hidden">NEXT QUESTION ➡️</button>
+    </div>
+
+    <div id="results-screen" class="w-full max-w-md h-screen flex flex-col justify-center items-center p-6 text-center hidden-screen animate-pop">
+        <h2 class="text-4xl font-black text-cyan-400 mb-2">LEVEL COMPLETE!</h2>
+        <p id="performance-message" class="text-xl font-bold text-pink-500 mb-8 uppercase"></p>
+        
+        <div class="bg-slate-800 rounded-3xl p-8 w-full border-2 border-slate-700 mb-8 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 text-9xl opacity-10 text-cyan-500">🏆</div>
+            <p class="text-sm text-slate-400 font-bold mb-1">FINAL SCORE</p>
+            <p id="final-score" class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-4">0</p>
+            <p id="first-try-stats" class="text-slate-300 text-sm font-medium"></p>
+        </div>
+        
+        <div class="w-full space-y-4">
+            <button onclick="resetGame()" class="w-full py-4 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 font-black text-xl shadow-[0_0_15px_rgba(236,72,153,0.4)] active:scale-95 transition">PLAY AGAIN 🔄</button>
+            <button onclick="showScreen('welcome-screen')" class="w-full py-3 rounded-full bg-slate-800 border-2 border-slate-600 text-slate-300 font-bold active:scale-95 transition">MAIN MENU 🏠</button>
+        </div>
+    </div>
+
+    <script>
+        const QUESTIONS = [
+            { target: "She walks to school every morning.", scrambled: ["every", "walks", "morning", "She", "school", "to"], hint: "Start with the person doing the action. (Simple Present Tense)" },
+            { target: "They played football yesterday.", scrambled: ["yesterday", "football", "played", "They"], hint: "Start with the pronoun. (Simple Past Tense)" },
+            { target: "My brother watches television every evening.", scrambled: ["every", "television", "My", "evening", "watches", "brother"], hint: "Who does the action? (Subject + Verb + Object)" },
+            { target: "The students are studying English now.", scrambled: ["now", "English", "are", "The", "studying", "students"], hint: "Start with the subject. (Present Continuous Tense)" },
+            { target: "Where do you live?", scrambled: ["you", "Where", "live", "do", "?"], hint: "Begin with the question word. (Question Structure)" },
+            { target: "She has a beautiful red bag.", scrambled: ["red", "a", "bag", "beautiful", "She", "has"], hint: "Order of adjectives matters. (Adjectives)" },
+            { target: "He always arrives early for class.", scrambled: ["for", "always", "class", "arrives", "He", "early"], hint: "Adverb of frequency goes before the main verb. (Adverbs of Frequency)" },
+            { target: "We will visit the museum tomorrow.", scrambled: ["tomorrow", "visit", "We", "museum", "will", "the"], hint: "Look for the future tense helping verb. (Future Tense)" },
+            { target: "I do not like spicy food.", scrambled: ["spicy", "do", "I", "food", "not", "like"], hint: "Negative sentences need a helping verb. (Negative Sentences)" },
+            { target: "The cat is under the table.", scrambled: ["the", "under", "cat", "table", "is", "The"], hint: "Where is the cat? (Prepositions)" },
+            { target: "My friends enjoy playing badminton.", scrambled: ["badminton", "My", "enjoy", "playing", "friends"], hint: "Plural subject. (Subject–Verb Agreement)" },
+            { target: "You should drink enough water every day.", scrambled: ["every", "should", "water", "You", "day", "drink", "enough"], hint: "Start with 'You'. (Modal Verbs)" },
+            { target: "I stayed at home because it was raining.", scrambled: ["raining", "because", "I", "was", "at", "it", "home", "stayed"], hint: "Connect two ideas with 'because'. (Conjunctions)" },
+            { target: "This book is more interesting than that one.", scrambled: ["than", "interesting", "This", "one", "more", "book", "that", "is"], hint: "Compare two things. (Comparative Adjectives)" },
+            { target: "Please switch off your phone.", scrambled: ["your", "Please", "phone", "off", "switch"], hint: "Start politely. (Imperative Sentences)" },
+            { target: "She has finished her homework already.", scrambled: ["already", "her", "has", "homework", "finished", "She"], hint: "Present perfect uses has + past participle. (Present Perfect Tense)" },
+            { target: "The boy who won the race is my friend.", scrambled: ["my", "won", "who", "The", "friend", "boy", "race", "is", "the"], hint: "Use 'who' to describe the boy. (Relative Clauses)" },
+            { target: "Although it was raining, we continued playing.", scrambled: ["continued", "Although", "playing", "we", "raining", "it", "was"], hint: "Find the clause beginning with 'Although'. (Complex Sentences)" },
+            { target: "Why did you leave the party early?", scrambled: ["early", "you", "Why", "the", "did", "leave", "party", "?"], hint: "Start with 'Why'. (Question Words)" },
+            { target: "If you practise every day, you will improve your English.", scrambled: ["improve", "If", "your", "every", "will", "English", "you", "day", "practise"], hint: "Start with 'If'. (Mixed Grammar Challenge)" }
+        ];
+
+        let state = {
+            mode: 'normal',
+            soundEnabled: true,
+            currentQuestionIdx: 0,
+            score: 0,
+            firstTrySuccess: 0,
+            isFirstTry: true,
+            availableWords: [],
+            answerWords: [],
+            timer: null,
+            timeLeft: 45
+        };
+
+        function showScreen(screenId) {
+            ['welcome-screen', 'how-to-play-screen', 'gameplay-screen', 'results-screen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden-screen');
+            });
+            document.getElementById(screenId).classList.remove('hidden-screen');
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            document.getElementById('btn-mode-normal').className = mode === 'normal' ? 'px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-bold transition' : 'px-3 py-1 rounded-lg bg-slate-700 text-slate-400 text-xs font-bold transition';
+            document.getElementById('btn-mode-challenge').className = mode === 'challenge' ? 'px-3 py-1 rounded-lg bg-pink-600 text-white text-xs font-bold transition' : 'px-3 py-1 rounded-lg bg-slate-700 text-slate-400 text-xs font-bold transition';
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            const btn = document.getElementById('btn-sound');
+            if (state.soundEnabled) {
+                btn.innerText = "ON 🔊";
+                btn.className = "px-4 py-1 rounded-lg bg-pink-500 text-white text-xs font-bold transition";
+            } else {
+                btn.innerText = "OFF 🔇";
+                btn.className = "px-4 py-1 rounded-lg bg-slate-700 text-slate-400 text-xs font-bold transition";
+            }
+        }
+
+        function startGame() {
+            state.currentQuestionIdx = 0;
+            state.score = 0;
+            state.firstTrySuccess = 0;
+            showScreen('gameplay-screen');
+            
+            if (state.mode === 'challenge') {
+                document.getElementById('timer-display').classList.remove('hidden');
+            } else {
+                document.getElementById('timer-display').classList.add('hidden');
+            }
+            
+            loadQuestion();
+        }
+
+        function resetGame() {
+            startGame();
+        }
+
+        function loadQuestion() {
+            const q = QUESTIONS[state.currentQuestionIdx];
+            state.availableWords = [...q.scrambled];
+            state.answerWords = [];
+            state.isFirstTry = true;
+            
+            // Reset UI
+            document.getElementById('question-counter').innerText = `Q: ${state.currentQuestionIdx + 1}/20`;
+            document.getElementById('score-display').innerText = `SCORE: ${state.score}`;
+            document.getElementById('progress-bar').style.width = `${(state.currentQuestionIdx / 20) * 100}%`;
+            
+            document.getElementById('feedback-area').className = "w-full text-center mb-4 min-h-[40px] font-bold text-sm rounded-lg p-2 transition-all opacity-0";
+            document.getElementById('hint-area').classList.add('hidden');
+            document.getElementById('btn-submit').classList.remove('hidden');
+            document.getElementById('btn-next').classList.add('hidden');
+            document.getElementById('answer-area').classList.remove('animate-success');
+            
+            renderTiles();
+            
+            if (state.mode === 'challenge') {
+                startTimer();
+            }
+        }
+
+        function renderTiles() {
+            const bank = document.getElementById('word-bank');
+            const answer = document.getElementById('answer-area');
+            const placeholder = document.getElementById('answer-placeholder');
+            
+            bank.innerHTML = '';
+            // Don't clear innerHTML directly to preserve placeholder logic cleanly, use a loop
+            Array.from(answer.children).forEach(child => {
+                if(child.id !== 'answer-placeholder') child.remove();
+            });
+
+            if (state.answerWords.length > 0) {
+                placeholder.classList.add('hidden');
+                answer.classList.add('active');
+            } else {
+                placeholder.classList.remove('hidden');
+                answer.classList.remove('active');
+            }
+
+            // Render Bank
+            state.availableWords.forEach((word, index) => {
+                const btn = createTile(word, () => moveToAnswer(index));
+                bank.appendChild(btn);
+            });
+
+            // Render Answer
+            state.answerWords.forEach((word, index) => {
+                const btn = createTile(word, () => moveToBank(index));
+                btn.classList.add('bg-cyan-900', 'border-cyan-500', 'text-cyan-100');
+                answer.appendChild(btn);
+            });
+        }
+
+        function createTile(text, onClick) {
+            const btn = document.createElement('button');
+            btn.innerText = text;
+            btn.className = "word-tile px-4 py-2 bg-slate-800 border-2 border-slate-600 rounded-xl font-bold text-lg shadow-md animate-pop";
+            btn.onclick = onClick;
+            return btn;
+        }
+
+        function moveToAnswer(index) {
+            const word = state.availableWords.splice(index, 1)[0];
+            state.answerWords.push(word);
+            playSound('tap');
+            renderTiles();
+        }
+
+        function moveToBank(index) {
+            const word = state.answerWords.splice(index, 1)[0];
+            state.availableWords.push(word);
+            playSound('tap');
+            renderTiles();
+        }
+
+        function undo() {
+            if (state.answerWords.length > 0) {
+                moveToBank(state.answerWords.length - 1);
+            }
+        }
+
+        function clearAnswer() {
+            if (state.answerWords.length > 0) {
+                state.availableWords = state.availableWords.concat(state.answerWords);
+                state.answerWords = [];
+                playSound('tap');
+                renderTiles();
+            }
+        }
+
+        function showHint() {
+            const hintArea = document.getElementById('hint-area');
+            hintArea.innerText = `💡 Hint: ${QUESTIONS[state.currentQuestionIdx].hint}`;
+            hintArea.classList.remove('hidden');
+        }
+
+        function submitAnswer() {
+            if (state.answerWords.length === 0) return;
+
+            clearInterval(state.timer);
+
+            const q = QUESTIONS[state.currentQuestionIdx];
+            // Normalize spaces for comparison
+            const targetNorm = q.target.replace(/\s+/g, '').toLowerCase();
+            const answerNorm = state.answerWords.join('').replace(/\s+/g, '').toLowerCase();
+            
+            const feedback = document.getElementById('feedback-area');
+            feedback.style.opacity = '1';
+
+            if (targetNorm === answerNorm) {
+                // Correct
+                playSound('success');
+                let pts = 0;
+                if (state.isFirstTry) {
+                    pts = 5;
+                    state.score += pts;
+                    state.firstTrySuccess++;
+                }
+                
+                feedback.innerHTML = `<span class="text-green-400 text-lg">W! YOU NAILED IT! 🌟</span><br><span class="text-xs font-normal text-slate-300">Target: ${q.target}</span>`;
+                feedback.className = "w-full text-center mb-4 min-h-[40px] font-bold text-sm rounded-lg p-2 transition-all bg-green-900/40 border border-green-500";
+                
+                document.getElementById('answer-area').classList.add('animate-success');
+                document.getElementById('score-display').innerText = `SCORE: ${state.score}`;
+                
+                document.getElementById('btn-submit').classList.add('hidden');
+                document.getElementById('btn-next').classList.remove('hidden');
+                
+            } else {
+                // Incorrect
+                playSound('error');
+                state.isFirstTry = false;
+                document.getElementById('answer-area').classList.add('animate-shake');
+                setTimeout(() => document.getElementById('answer-area').classList.remove('animate-shake'), 400);
+                
+                feedback.innerHTML = `<span class="text-pink-500">NOT QUITE! Remix those words! 🔄</span>`;
+                feedback.className = "w-full text-center mb-4 min-h-[40px] font-bold text-sm rounded-lg p-2 transition-all bg-pink-900/40 border border-pink-500";
+                
+                showHint();
+                if (state.mode === 'challenge') startTimer(); // resume timer
+            }
+        }
+
+        function nextQuestion() {
+            state.currentQuestionIdx++;
+            if (state.currentQuestionIdx >= QUESTIONS.length) {
+                endGame();
+            } else {
+                loadQuestion();
+            }
+        }
+
+        function startTimer() {
+            clearInterval(state.timer);
+            state.timeLeft = 45;
+            updateTimerDisplay();
+            
+            state.timer = setInterval(() => {
+                state.timeLeft--;
+                updateTimerDisplay();
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timer);
+                    state.isFirstTry = false;
+                    document.getElementById('feedback-area').style.opacity = '1';
+                    document.getElementById('feedback-area').innerHTML = `<span class="text-pink-500">TIME'S UP! Keep trying! ⏱️</span>`;
+                    document.getElementById('feedback-area').className = "w-full text-center mb-4 min-h-[40px] font-bold text-sm rounded-lg p-2 transition-all bg-pink-900/40 border border-pink-500";
+                    showHint();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timer-display');
+            display.innerText = `${state.timeLeft}s`;
+            if (state.timeLeft <= 10) {
+                display.classList.add('animate-pulse', 'text-red-500');
+            } else {
+                display.classList.remove('animate-pulse', 'text-red-500');
+            }
+        }
+
+        function endGame() {
+            showScreen('results-screen');
+            document.getElementById('final-score').innerText = state.score;
+            document.getElementById('first-try-stats').innerText = `${state.firstTrySuccess} / 20 First Try Correct`;
+            
+            let message = "";
+            if (state.score >= 90) message = "SENTENCE REMIX LEGEND! 👑";
+            else if (state.score >= 75) message = "GRAMMAR PRO! 🚀";
+            else if (state.score >= 50) message = "WORD FLIP WARRIOR! ⚔️";
+            else message = "KEEP REMIXING — YOU'RE LEVELING UP! 🌱";
+            
+            document.getElementById('performance-message').innerText = message;
+        }
+
+        function playSound(type) {
+            if (!state.soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                if (type === 'tap') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.1);
+                } else if (type === 'success') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, ctx.currentTime);
+                    osc.frequency.setValueAtTime(600, ctx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(800, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.4);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.2);
+                }
+            } catch (e) {
+                console.log("Audio not supported or interaction needed.");
+            }
+        }
+    </script>
+</body>
+</html>
